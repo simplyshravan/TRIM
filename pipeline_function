@@ -1,0 +1,41 @@
+create or replace package mypackage is
+TYPE mytype is record
+ (col1 varchar(10),col2 varchar(10),col3 number);
+type mytypetable is table of mytype;
+function myfunc(longname in varchar2)
+return mytypetable
+pipelined;
+end mypackage;
+
+
+create or replace package body mypackage is
+--TYPE mytype is record (col1 varchar(10),col2 varchar(10),col3 number);
+--type mytypetable is table of mytype;
+function myfunc(longname in varchar2)
+return mytypetable
+pipelined 
+IS
+j number :=0;
+mytypetab mytypetable:=mytypetable();
+--cursor c1 (longname in varchar2) is (select col1 , col2,col3 from ippodsdata.fund_shareclass);
+begin
+--open c1;
+mytypetab.extend;
+for i in (select col1 , col2,col3 from ippodsdata.fund_shareclass)
+LOOP
+  --EXIT WHEN i%notfound;
+  dbms_output.put_line(j);
+  mytypetab.extend;
+  mytypetab(j+1).col1:=i.col1;
+  mytypetab(j+1).col2:=i.col2;
+  mytypetab(j+1).col3:=i.col3;
+  pipe row (mytypetab(j+1));
+  j:=j+1;
+  mytypetab.extend;
+ -- EXIT WHEN i%notfound;
+end LOOP;
+RETURN;
+end myfunc;
+end mypackage;
+
+select count(*) from table(mypackage.myfunc('mydata'));
