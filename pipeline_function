@@ -16,7 +16,7 @@ IS
 j number :=0;
 mytypetab mytypetable:=mytypetable();
 begin
-for i in (select col1 , col2,col3 from ippodsdata.fund_shareclass)
+for i in (select col1 , col2,col3 from ods.class_table)
 LOOP
   dbms_output.put_line(j);
   mytypetab.extend; ----need to extend to add new row
