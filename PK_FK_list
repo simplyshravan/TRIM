@@ -1,0 +1,9 @@
+select c.constraint_name,
+LISTAGG( c.column_name,',') WITHIN GROUP (order by c.column_name) OVER(partition by b.r_constraint_name) 
+,a.constraint_name
+, LISTAGG( a.column_name,',') WITHIN GROUP (order by a.column_name) OVER(partition by a.constraint_name,b.r_constraint_name) 
+from user_cons_columns a, user_constraints b, user_cons_columns c
+where a.constraint_name=b.constraint_name
+and b.r_constraint_name=c.constraint_name
+and (a.constraint_name like 'PK%' or a.constraint_name like 'FK%')
+and (c.constraint_name like 'PK%' or c.constraint_name like 'FK%');
