@@ -1,0 +1,48 @@
+create table mytable1(grp_nm varchar(20),mbr_nm number, item_nm number,agreement_id varchar(50),src_grp_nm number,agreement_num varchar(50),
+agr_strt_dt date,agr_end_dt date)
+
+insert into mytable1
+values ('SKL0001',123456,943447,'001-0393636-212',1017,'001-0393636-212',to_date('11092009','DDMMYYYY'),to_date('30042019','DDMMYYYY'))
+
+insert into mytable1
+values ('SKL0001',456789,943337,'001-0393636-000',1017,'001-0393636-000',to_date('23092010','DDMMYYYY'),to_date('30042019','DDMMYYYY'))
+
+
+insert into mytable1
+values ('SKL0001',456789,1183337,'001-0393636-001',1017,'001-0393636-001',to_date('15102015','DDMMYYYY'),to_date('30042019','DDMMYYYY'))
+
+insert into mytable1
+values ('SKL0001',789101,1183447,'001-05273377-212',1017,'001-05273377-212',to_date('31082017','DDMMYYYY'),to_date('30042019','DDMMYYYY'))
+
+
+#####################################################
+----if in a single patition i.e grp_nm there are multiple records for same mbr_nm then pick 1st and last span but if there are multiple mbr_nm in one grp_nm then pick 1st span of all
+SELECT *
+                  FROM (SELECT grp_nm,
+                               mbr_nm,
+                               agreement_num,
+                               agr_strt_dt,count(*) over(PARTITION BY grp_nm, mbr_nm ) cnt,count( distinct mbr_nm ) over(PARTITION BY grp_nm) cnt2,
+                               RANK() OVER(PARTITION BY grp_nm, mbr_nm ORDER BY agr_strt_dt ASC) rnk
+                          FROM mytable1 ) a
+                 WHERE ((rnk = 1 or cnt=rnk ) and cnt2=1) or (rnk = 1 and cnt2>1)
+
+#############################################################
+--then generate continues span using output of above query to generate below report
+SELECT grp_nm,org_agreement_num,
+       next_change_in_agreement_num,
+       org_agr_strt_dt,
+       next_change_in_agr_strt_dt
+  FROM (SELECT grp_nm,agreement_num org_agreement_num,
+               MIN(agreement_num) OVER(PARTITION BY grp_nm ORDER BY agr_strt_dt ASC ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING) next_change_in_agreement_num,
+               agr_strt_dt org_agr_strt_dt,
+               MIN(agr_strt_dt) OVER(PARTITION BY grp_nm ORDER BY agr_strt_dt ASC ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING) next_change_in_agr_strt_dt,
+               RANK() OVER(PARTITION BY grp_nm ORDER BY agr_strt_dt ASC) rnk
+          FROM (SELECT grp_nm, mbr_nm, agreement_num, agr_strt_dt
+                  FROM (SELECT grp_nm,
+                               mbr_nm,
+                               agreement_num,
+                               agr_strt_dt,count(*) over(PARTITION BY grp_nm, mbr_nm ) cnt,count( distinct mbr_nm ) over(PARTITION BY grp_nm) cnt2,
+                               RANK() OVER(PARTITION BY grp_nm, mbr_nm ORDER BY agr_strt_dt ASC) rnk
+                          FROM mytable1 ) a
+                 WHERE ((rnk = 1 or cnt=rnk ) and cnt2=1) or (rnk = 1 and cnt2>1)))
+ WHERE (MOD(rnk, 2) = 1 OR (next_change_in_agreement_num IS NULL  and MOD(rnk, 2) !=0))
